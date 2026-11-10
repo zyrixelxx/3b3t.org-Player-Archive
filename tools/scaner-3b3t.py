@@ -1,4 +1,4 @@
-#ручной сканер код Zyrixel
+#Zyxel hand scanner
 import json
 import os
 import threading
@@ -11,10 +11,10 @@ import requests
 BASE = "https://cf.3b3t.org"
 OUT_FILE = "players_stats.json"
 CACHE_FILE = "players_cache.jsonl"
-CATEGORY = "playtime"   # по какой категории листаем лидерборд
-PAGE_SIZE = 50          # максимум по доке
-WORKERS = 10            # потоков; если ловишь 429 - уменьши
-DEFAULT_DESC = "Нет описания"
+CATEGORY = "playtime"    # category to browse leaderboard by
+PAGE_SIZE = 50           # maximum per docs
+WORKERS = 10             # threads; decrease if hitting 429
+DEFAULT_DESC = "No description"
 
 STAT_KEYS = [
     "playtime", "kills", "deaths", "blocksPlaced", "blocksMined",
@@ -26,7 +26,7 @@ lock = threading.Lock()
 
 
 def get_json(path, params=None, retries=6):
-    """GET с ретраями. 404 -> None."""
+    """GET with retries. 404 -> None."""
     for attempt in range(retries):
         try:
             r = requests.get(BASE + path, params=params, timeout=20)
@@ -43,7 +43,7 @@ def get_json(path, params=None, retries=6):
 
 
 def collect_leaderboard():
-    """Листаем лидерборд до пустой страницы. Возвращает {username: stats}."""
+    """Browse leaderboard until an empty page. Returns {username: stats}."""
     players = {}
     page = 0
     while True:
@@ -59,8 +59,8 @@ def collect_leaderboard():
             if name and name not in players:
                 players[name] = p.get("stats") or {}
                 new += 1
-        print(f"лидерборд: страница {page}, всего ников {len(players)}")
-        if new == 0:  # защита от зацикливания, если API отдаёт одно и то же
+        print(f"leaderboard: page {page}, total usernames {len(players)}")
+        if new == 0:  # protection against infinite loop if API returns the same data
             break
         page += 1
     return players
@@ -99,7 +99,7 @@ def main():
     leaderboard = collect_leaderboard()
     done = load_cache()
     todo = [n for n in leaderboard if n not in done]
-    print(f"всего: {len(leaderboard)}, уже в кэше: {len(done)}, осталось: {len(todo)}")
+    print(f"total: {len(leaderboard)}, already in cache: {len(done)}, remaining: {len(todo)}")
 
     counter = {"n": 0}
     cache_f = open(CACHE_FILE, "a", encoding="utf-8")
@@ -112,7 +112,7 @@ def main():
             done[name] = rec
             counter["n"] += 1
             if counter["n"] % 100 == 0:
-                print(f"обработано {counter['n']}/{len(todo)}")
+                print(f"processed {counter['n']}/{len(todo)}")
 
     try:
         with ThreadPoolExecutor(max_workers=WORKERS) as ex:
@@ -128,7 +128,7 @@ def main():
     }
     with open(OUT_FILE, "w", encoding="utf-8") as f:
         json.dump(result, f, ensure_ascii=False, indent=2)
-    print(f"готово: {len(players)} игроков -> {OUT_FILE}")
+    print(f"done: {len(players)} players -> {OUT_FILE}")
 
 
 if __name__ == "__main__":
